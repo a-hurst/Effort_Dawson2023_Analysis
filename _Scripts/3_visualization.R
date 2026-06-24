@@ -128,6 +128,50 @@ ggplot(mod_ps_draws, aes(x = ps_change, y = rt, color = cue_validity)) +
 
 
 
+### Plot cueing effects at +/- 1 SD of pupil change ###
+
+mod_ps_draws2 <- dat_ps %>%
+  group_by(cue_validity, difficulty) %>%
+  data_grid(ps_change_z = c(-1, 1)) %>%
+  add_epred_draws(mod_ps, re_formula = NA) %>%
+  ungroup() %>%
+  select(-c(.chain, .iteration, .row)) %>%
+  mutate(
+    .epred = exp((.epred * sd(dat_ps$lrt)) + mean(dat_ps$lrt)),
+    ps_change_z = as.factor(as.character(ps_change_z)),
+    difficulty = as.factor(str_to_title(difficulty))
+  ) %>%
+  spread(cue_validity, .epred) %>%
+  mutate(
+    cue_eff = invalid - valid,
+    ps_change_z = factor(
+      ps_change_z, levels = c("-1", "1"), labels = c("-1 SD", "+1 SD")
+    ),
+    `Trial Type` = factor(difficulty, levels = c("Easy", "Difficult")),
+  )
+
+mod_ps_hdis <- mod_ps_draws2 %>%
+  group_by(ps_change_z, `Trial Type`) %>%
+  point_interval(cue_eff, .width = c(0.6, 0.9))
+
+pd <- position_dodge(0.3)
+ggplot(mod_ps_hdis, aes(x = ps_change_z, y = cue_eff, color = `Trial Type`)) +
+  geom_line(aes(group = `Trial Type`), lty = 6, position = pd, alpha = 0.5) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_pointinterval(
+    aes(ymin = .lower, ymax = .upper), position = pd
+  ) +
+  ylab("Cueing Effect (ms)") +
+  xlab("Post-Cue Pupil Change (Standardized)") +
+  scale_color_manual(values = c("#00BFC4", "#F8766D")) +
+  theme_classic() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 7)),
+    axis.title.y = element_text(margin = margin(r = 7))
+  )
+
+
+
 ### Plot kappa estimates & pairwise effects from colour wheel model ###
 
 # Visualize kappa estimates across cue type
