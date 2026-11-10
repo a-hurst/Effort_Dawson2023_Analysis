@@ -297,3 +297,53 @@ mod_col <- update(
   iter = n_samples, warmup = n_warmup,
   chains = n_chains, cores = n_cores
 )
+
+
+
+### Prepare and run fidelity vs pupil size change model ###
+
+# Gather colour wheel data for trials with usable pupil data
+
+colour_ps_dat <- a2 %>%
+  anti_join(problem_ids, by = "asc_id") %>%
+  subset(!practice & probe_rt > 200) %>%
+  subset(!is.na(response_angle) & abs(angle_err) < 90) %>%
+  subset(!is.na(ps_avg_0)) %>%
+  mutate(
+    angle_err_rad = angle_err * (pi / 180),
+    postcue_change = ps_avg_pretarget - ps_avg_0,
+    ps_change_z = (postcue_change - mean(postcue_change)) / sd(postcue_change),
+  )
+
+contrasts(colour_ps_dat$cue_validity) <- contr.equalprior_pairs(3)
+
+
+# Define the Von Mises model and pre-compile it (takes a minute)
+
+bf_col_ps <- bf(
+  angle_err_rad ~ 0,
+  kappa ~ cue_validity * ps_change_z + (cue_validity * ps_change_z | asc_id)
+) + von_mises()
+
+mod_col_ps_tmp <- brm(
+  bf_col_ps, data = colour_ps_dat,
+  family = von_mises(),
+  prior = c(
+    # Since kappa is on log scale, prior of 2.3 ~= kappa of 10
+    prior(normal(2.3, 0.8), class = "Intercept", dpar = "kappa"),
+    prior(normal(0, 2), class = "b", dpar = "kappa"),
+    prior(exponential(1), class = "sd", dpar = "kappa"),
+    prior(lkj(2), class = "cor")
+  ),
+  chains = 0
+)
+
+
+# Actually run the colour model (will take a minute or two)
+
+mod_col_ps <- update(
+  mod_col_ps_tmp, newdata = colour_ps_dat,
+  recompile = FALSE,
+  iter = n_samples, warmup = n_warmup,
+  chains = n_chains, cores = n_cores
+)

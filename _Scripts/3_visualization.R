@@ -240,3 +240,77 @@ plot_grid(
   colplot1, colplot2,
   labels = c("A", "B"), label_size = 12
 )
+
+
+### Plot pupil change ~ cue validity slopes across cue types ###
+
+mod_col_draws <- colour_ps_dat %>%
+  group_by(cue_validity) %>%
+  data_grid(ps_change_z = seq(-2, 2, by = 0.5)) %>%
+  add_epred_draws(mod_col_ps, re_formula = NA, dpar = "kappa") %>%
+  mutate(
+    cue_validity = as.factor(str_to_title(cue_validity))
+  )
+
+colplot3 <- ggplot(
+  mod_col_draws, aes(x = ps_change_z, y = kappa, color = cue_validity)
+) +
+  stat_lineribbon(
+    aes(y = kappa), .width = 0, alpha = 1, fill = "grey70"
+  ) +
+  scale_color_manual(values = c("#009E73", "#D55E00", "#0072B2")) +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 7)),
+    axis.title.y = element_text(margin = margin(r = 7))
+  ) +
+  labs(color = "Cue Type") +
+  ylab("Fidelity of Encoding (k)") +
+  xlab("Post-Cue Pupil Change (Standardized Units)")
+
+
+
+### Plot fidelity cueing effects at +/- 1 SD of pupil change ###
+
+mod_ps_draws_col <- colour_ps_dat %>%
+  group_by(cue_validity) %>%
+  data_grid(ps_change_z = c(-1, 1)) %>%
+  add_epred_draws(mod_col_ps, re_formula = NA, dpar = "kappa") %>%
+  ungroup() %>%
+  select(-c(.chain, .iteration, .row)) %>%
+  mutate(
+    ps_change_z = as.factor(as.character(ps_change_z))
+  ) %>%
+  spread(cue_validity, kappa) %>%
+  mutate(
+    cue_eff = valid - invalid,
+    ps_change_z = factor(
+      ps_change_z, levels = c("-1", "1"), labels = c("-1 SD", "+1 SD")
+    )
+  )
+
+mod_col_ps_hdis <- mod_ps_draws_col %>%
+  group_by(ps_change_z) %>%
+  point_interval(cue_eff, .width = c(0.6, 0.9))
+
+colplot4 <- ggplot(
+  mod_col_ps_hdis, aes(x = ps_change_z, y = cue_eff, color = "#F8766D")
+) +
+  geom_line(aes(group = 1), lty = 6, alpha = 0.5) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_pointinterval(
+    aes(ymin = .lower, ymax = .upper)
+  ) +
+  ylab("Cueing Effect (k)") +
+  xlab("Post-Cue Pupil Change") +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_text(margin = margin(t = 7)),
+    axis.title.y = element_text(margin = margin(r = 7))
+  )
+
+plot_grid(
+  colplot3, colplot4,
+  labels = c("A", "B"), label_size = 12,
+  rel_widths = c(0.6, 0.4)
+)

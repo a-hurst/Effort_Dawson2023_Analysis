@@ -129,6 +129,11 @@ emtrends(
   pairs() %>%
   describe_posterior(ci = 0.9)
 
+emtrends(
+  mod_ps, ~ cue_validity | difficulty, level = 0.9, var = "ps_change_z"
+) %>%
+  describe_posterior(ci = 0.9)
+
 
 
 ### Summarize GAM outputs ###
@@ -224,3 +229,19 @@ describe_posterior(emm_col_pairs, ci = 0.9)
 describe_posterior(
   emm_col_pairs_log, ci = 0.9, rope_range = c(-0.03, 0.03)
 )
+
+
+
+### Summarize colour wheel vs pupil change model results ###
+
+# Get slopes for fidelity ~ pupil size effect
+
+col_ps_trends <- emtrends(
+  mod_col_ps, ~ cue_validity, var = "ps_change_z", dpar = "kappa", level = 0.9
+)
+
+describe_posterior(col_ps_trends, ci = 0.9)
+
+col_ps_trends %>%
+  pairs() %>%
+  describe_posterior(ci = 0.9)
